@@ -64,8 +64,7 @@ def predictor():
     return response
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(port=port)
+    app.run()
 
 # def model_predict():
 #     # Get the file from post request
