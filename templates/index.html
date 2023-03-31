@@ -1,16 +1,8 @@
 {% extends "base.html" %} {% block content %}
 
-<h2>Welcome to visual inspector</h2>
+<h2>Welcome to Skin cancer detector</h2>
 <div class="body">
     <form id="upload-file" method="post" enctype="multipart/form-data">
-
-        <div class="checkbox-group required">
-            <input type="checkbox" name="cancer" id="cancer" value="cancer">
-                <label for="cancer">Check Skin Cancer Type</label>
-            <br>
-            <br>
-            <input type="checkbox" name="pneumonia" id="pneumonia" value="Pneumonia"> 
-            <label for="pneumonia">Check Pneumonia X-Ray</label>
         </div>
 
         <input type="file" name="file" id="imageUpload" accept=".png, .jpg, .jpeg">

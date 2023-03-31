@@ -1,90 +1,81 @@
-from flask import Flask, render_template, request
-
-
-from werkzeug.utils import secure_filename
+# from __future__ import division, print_function
+# coding=utf-8
 import os
-import requests
-import base64
+import numpy as np
 
+# Keras
+from keras.models import load_model
+import keras.utils as image
+
+# Flask utils
+from flask import Flask, redirect, url_for, request, render_template
+from werkzeug.utils import secure_filename
+# Define a flask app
 app = Flask(__name__)
 
+#MAP
+predictor_dict = {
+        0 : 'Dermatofibroma (df)',
+        1 :  'Actinic keratoses and intraepithelial carcinoma (akiec)',
+        2 : 'Melanoma (mel)',
+        3:  'Basal cell carcinoma (bcc)',
+        4:  'Benign keratosis-like lesions (bkl)',
+        5: 'Vascular lesions (vasc)',
+        6: 'Melanocytic nevi (nv)'
+    }
+
+# Model saved with Keras model.save()
+MODEL_PATH = './models/model_skin_cancer.h5'
+
+# Load your trained model
+model = load_model(MODEL_PATH)
+# model._make_predict_function()          # Necessary
+print('Model loaded. Start serving...')
+
+print('Model loaded. Check http://127.0.0.1:5000/')
 
 
-@app.route('/')
+def model_predict(img_path, model):
+    img = image.load_img(img_path, target_size=(100,75))
+    # Preprocessing the image
+    x = image.img_to_array(img)
+    mean = 159.88411714650246
+    std = 46.45448942251337
+    x = (x - mean) / std
+    x = x.reshape(75, 100, 3)
+    x = np.expand_dims(x, axis=0)
+
+    preds = model.predict(x)
+    return preds
+
+
+@app.route('/', methods=['GET'])
 def index():
+    # Main page
     return render_template('index.html')
 
-@app.route('/predict', methods=['GET','POST'])
 
-def predictor():
+@app.route('/predict', methods=['GET', 'POST'])
+def upload():
+    if request.method == 'POST':
+        # Get the file from post request
+        f = request.files['file']
 
-    predictor_dict = {
-        'df': 'Dermatofibroma (df)',
-        'akiec':  'Actinic keratoses and intraepithelial carcinoma (akiec)',
-        'mel': 'Melanoma (mel)',
-        'bcc':  'Basal cell carcinoma (bcc)',
-        'bkl':  'Benign keratosis-like lesions (bkl)',
-        'vasc': 'Vascular lesions (vasc)',
-        'nv': 'Melanocytic nevi (nv)'
-    }
-    f = request.files['file']
-    basepath = os.path.dirname(__file__)
-    print(basepath)
-    file_path = os.path.join(basepath, 'uploads', 'uploaded.png')
-    f.save(file_path)
-    print(file_path)
+        # Save the file to ./uploads
+        basepath = os.path.dirname(__file__)
+        file_path = os.path.join(
+            basepath, 'uploads', secure_filename(f.filename))
+        f.save(file_path)
 
-    binaryContent = open(file_path, 'rb')
-    myobj = {"files": binaryContent,"containHeatMap":True}
+        # Make prediction
+        preds = model_predict(file_path, model)
 
-    mURL = "https://ac922.mapsysinc.com/visual-insights/api/dlapis/0230d128-dc6c-4474-89ef-80b59ee57386"
-    resultSource = requests.post(mURL, files=myobj, verify=True)
-    resultsPack = resultSource.json()
-    # print(resultsPack)
-    heatmap = resultsPack.get('heatmap')
-    heatmapData = heatmap.replace('data:image/png;base64,', '')
-    imgdata = base64.b64decode(heatmapData)
-
-    modelResult = resultsPack.get('classified')
-    keyValues = list(modelResult.keys())
-    confidence = float(modelResult[keyValues[0]])
-    prediction = predictor_dict[keyValues[0]]
-
-    heatpath = 'output/' + 'output' + '.png'
-    with open(heatpath, "wb") as fh:
-        fh.write(imgdata)
-        fh.close()
-    
-    response = {
-        'prediction': prediction,
-        'confidence': confidence,
-        'heatmappath': heatpath,
-    }
-    
-    return response
+        # Process your result for human
+        pred_class = np.argmax(preds[0])
+        result = predictor_dict[pred_class]               # Convert to string
+        return result
+    return None
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(port=port)
-
-# def model_predict():
-#     # Get the file from post request
-#     f = request.files['file']
-
-#     # Save the file to ./uploads
-#     basepath = os.path.dirname(__file__)
-#     file_path = os.path.join(basepath, 'uploads', secure_filename(f.filename))
-#     f.save(file_path)
-#     print(file_path)
-
-#     img = image.load_img(file_path, target_size=(32,32))
-#     x = image.img_to_array(img)
-#     x = x / 255.
-#     x = x[np.newaxis, :, :, :1]
-
-#     out = model.predict(x)
-#     print(out)
-#     response = classes.iloc[(np.argmax(out))][1]
-#     print(response)
-#     return response
+    app.run(debug=True)
 

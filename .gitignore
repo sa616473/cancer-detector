@@ -1,2 +1,7 @@
 env
+.ipynb_checkpoints
+notebook
+deployment
+dataset
+.DS_Store
 __pycache__
